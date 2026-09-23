@@ -172,8 +172,11 @@ class TritonCandidateIndexer(CandidateIndexer):
                 blocks.gather(1, selected // self.block_size).long() * self.block_size
                 + selected % self.block_size
             )
-        selected = (selected + starts[:, None]).masked_fill(~(values > -torch.inf), -1)
-        out[:, :k].copy_(selected)
+        valid = values > -torch.inf
+        selected = selected + starts[:, None]
+        sentinel = torch.iinfo(selected.dtype).max
+        selected = selected.masked_fill(~valid, sentinel).sort(dim=-1).values
+        out[:, :k].copy_(selected.masked_fill(selected == sentinel, -1))
 
     @staticmethod
     def _requests(inputs, out_positions):
